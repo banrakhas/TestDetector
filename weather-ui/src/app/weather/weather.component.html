@@ -1,0 +1,21 @@
+<!-- src/app/weather/weather.component.html -->
+<div class="container">
+  <h2>Weather</h2>
+
+  <label for="city-dropdown">Select city</label>
+  <select id="city-dropdown" [(ngModel)]="selectedCity">
+    <option *ngFor="let c of cities" [value]="c">{{ c }}</option>
+  </select>
+
+  <button id="get-weather" (click)="fetchWeather()">Get weather</button>
+
+  <div *ngIf="loading">Loading...</div>
+  <div *ngIf="error" class="error">{{ error }}</div>
+
+  <div *ngIf="data" id="weather-card" class="card">
+    <div class="city">{{ data.city }}</div>
+    <div class="temp">{{ data.temperature }} °C</div>
+    <div class="cond">{{ data.condition }}</div>
+    <div class="icon">{{ data.icon }}</div>
+  </div>
+</div>
