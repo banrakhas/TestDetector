@@ -214,49 +214,31 @@ jobs:
           echo "Running tests extracted from LLM analysis..."
           cd ${{ github.workspace }}
 
-          # Build a list of include patterns for Angular tests
-          ng_includes=""
-          pytest_args=""
-
+          # Run each test command from the extracted test files
           while IFS= read -r test_file; do
             [ -z "$test_file" ] && continue
 
-            echo "Queued test: $test_file"
+            echo ""
+            echo "========================================"
+            echo "Testing: $test_file"
+            echo "========================================"
 
             if [[ "$test_file" == *.spec.ts ]] || [[ "$test_file" == *.test.ts ]]; then
-              # Angular/Karma tests - build include patterns
-              if [ -z "$ng_includes" ]; then
-                ng_includes="--include='$test_file'"
+              # Change to the directory containing the test (usually weather-ui for Angular tests)
+              if [[ "$test_file" == weather-ui/* ]]; then
+                (cd weather-ui && npm test -- "$test_file" || true)
               else
-                ng_includes="$ng_includes --include='$test_file'"
+                npm test -- "$test_file" || true
               fi
             elif [[ "$test_file" == test_*.py ]] || [[ "$test_file" == *_test.py ]]; then
-              # Python pytest - accumulate files
-              pytest_args="$pytest_args $test_file"
+              # Python tests
+              if [[ "$test_file" == backend/* ]]; then
+                (cd backend && pytest "$test_file" || true)
+              else
+                pytest "$test_file" || true
+              fi
             fi
           done < tests.txt
-
-          # Run Angular tests if any were queued
-          if [ -n "$ng_includes" ]; then
-            echo ""
-            echo "========================================"
-            echo "Running Angular Tests"
-            echo "========================================"
-            cd weather-ui
-            eval "npm test -- $ng_includes -- --watch=false --browsers=ChromeHeadless" || true
-            cd ..
-          fi
-
-          # Run Python tests if any were queued
-          if [ -n "$pytest_args" ]; then
-            echo ""
-            echo "========================================"
-            echo "Running Python Tests"
-            echo "========================================"
-            cd backend
-            pytest $pytest_args || true
-            cd ..
-          fi
 
           echo ""
           echo "Test execution completed."
