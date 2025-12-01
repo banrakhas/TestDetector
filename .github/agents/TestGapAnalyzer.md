@@ -77,8 +77,46 @@ Apply the following rules to generate the report based on the git diff and provi
 ### 🧪 Test Execution Plan
 
 _(Only if tests exist)_
-Run these commands:
+
+**Tests to Run:**
+
+For each test file that covers the change, format EXACTLY as follows (one test file per line, no extra text):
+
+```
+TEST_FILE: [relative/path/to/test/file.spec.ts]
+TEST_FILE: [relative/path/to/another/test_file.py]
+```
+
+Then add:
+
+**Run Commands:**
 
 ```bash
 [Command to run specific test file]
 ```
+
+**Example:**
+
+```
+TEST_FILE: src/app/weather/weather.component.spec.ts
+TEST_FILE: src/app/services/weather.service.spec.ts
+
+Run Commands:
+
+npm test -- src/app/weather/weather.component.spec.ts
+npm test -- src/app/services/weather.service.spec.ts
+```
+
+### 📝 Test Gap TODOs
+
+_(Only if logic/new changes have NO test coverage)_
+
+TODO: Add tests for [Function/Component Name]
+
+Context: [Explain why tests are needed]
+
+Suggested Test Scenarios:
+
+- [ ] Happy Path: [Expected success behavior]
+- [ ] Edge Case: [Boundary condition or null input]
+- [ ] Error State: [Expected error handling]
