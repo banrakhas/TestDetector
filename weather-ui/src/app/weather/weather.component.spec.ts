@@ -51,4 +51,10 @@ describe('WeatherComponent', () => {
     expect(component.loading).toBeFalse();
     expect(component.error).toBe('Failed to fetch weather');
   });
+
+  it('should render heading with correct text', () => {
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('h2')?.textContent).toContain('Weather-App');
+  });
 });
