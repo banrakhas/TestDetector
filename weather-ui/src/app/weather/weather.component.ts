@@ -31,7 +31,7 @@ export class WeatherComponent {
         this.loading = false;
       },
       error: () => {
-        this.error = 'Failed to fetch weather';
+        this.error = "Failed to fetch weather";
         this.loading = false;
       },
     });

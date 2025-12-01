@@ -1,3 +1,5 @@
 __pycache__
 *.egg.*
 node_modules
+dist
+weather_app_api.egg-info/

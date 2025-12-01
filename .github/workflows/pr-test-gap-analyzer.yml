@@ -1,0 +1,108 @@
+name: PR Test Suggestions
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  analyze-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Build npm (weather-ui)
+        run: |
+          cd weather-ui
+          npm install
+          npm run build
+
+      - name: Build Python (backend)
+        run: |
+          cd backend
+          pip install uv
+          uv sync
+          # Python build (if needed)
+          python -m build || true
+
+      - name: Get PR diff
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+          git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > pr_diff.txt
+
+      - name: Get repo tree
+        run: |
+          git ls-tree -r HEAD --name-only > repo_tree.txt
+
+      - name: Read TestGapAnalyzer instructions
+        id: instructions
+        run: |
+          INSTRUCTIONS=$(cat .github/agents/TestGapAnalyzer.md)
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          echo "$INSTRUCTIONS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Call LLM API
+        id: llm
+        env:
+          LLM_API_TOKEN: ${{ secrets.LLM_API_TOKEN || '' }}
+        run: |
+          # Example using OpenAI API (replace with Azure OpenAI if preferred)
+          RESPONSE=$(curl -s https://ollama.com/api/chat \
+            -H "Authorization: Bearer $LLM_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "model": "gpt-oss:120b",
+              "messages": [
+                {"role": "system", "content": "'"${{ steps.instructions.outputs.content }}"'"},
+                {"role": "user", "content": "Code diff:\n'"$(cat pr_diff.txt)"'"},
+                {"role": "user", "content": "Repo tree:\n'"$(cat repo_tree.txt)"'"}
+              ]
+            }')
+
+          echo "$RESPONSE" > llm_output.json
+          CONTENT=$(jq -r '.choices[0].message.content' llm_output.json)
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `${{ steps.llm.outputs.content }}`
+            });
+
+      - name: Extract Suggested Tests
+        id: tests
+        run: |
+          # Parse test names from LLM output (assuming they are listed in Markdown bullets)
+          echo "${{ steps.llm.outputs.content }}" | grep -oE 'test_[a-zA-Z0-9_]+' > tests.txt
+          if [ -s tests.txt ]; then
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "tests=$(cat tests.txt | tr '\n' ' ')" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Suggested Tests
+        if: steps.tests.outputs.found == 'true'
+        run: |
+          echo "Running suggested tests: ${{ steps.tests.outputs.tests }}"
+          # Example for Python/pytest; adapt for other frameworks
+          pytest -k "${{ steps.tests.outputs.tests }}"
