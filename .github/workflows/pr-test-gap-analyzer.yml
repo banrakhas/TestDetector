@@ -45,6 +45,26 @@ jobs:
         run: |
           git ls-tree -r HEAD --name-only > repo_tree.txt
 
+      - name: Collect test files
+        run: |
+          find . -type f \( -name "*.spec.ts" -o -name "*.test.ts" -o -name "test_*.py" -o -name "*_test.py" \) > test_files.txt || true
+
+      - name: Read test file contents
+        run: |
+          if [ -s test_files.txt ]; then
+            echo "## Test Files in Repository" > test_details.txt
+            echo "" >> test_details.txt
+            while IFS= read -r file; do
+              echo "### $file" >> test_details.txt
+              echo "\`\`\`" >> test_details.txt
+              cat "$file" >> test_details.txt
+              echo "\`\`\`" >> test_details.txt
+              echo "" >> test_details.txt
+            done < test_files.txt
+          else
+            echo "No test files found." > test_details.txt
+          fi
+
       - name: Read TestGapAnalyzer instructions
         id: instructions
         run: |
@@ -67,7 +87,8 @@ jobs:
               "messages": [
                 {"role": "system", "content": "'"${{ steps.instructions.outputs.content }}"'"},
                 {"role": "user", "content": "Code diff:\n'"$(cat pr_diff.txt)"'"},
-                {"role": "user", "content": "Repo tree:\n'"$(cat repo_tree.txt)"'"}
+                {"role": "user", "content": "Repo tree:\n'"$(cat repo_tree.txt)"'"},
+                {"role": "user", "content": "Existing tests:\n'"$(cat test_details.txt)"'"}
               ]
             }')
 
