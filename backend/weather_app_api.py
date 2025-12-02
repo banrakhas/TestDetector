@@ -22,6 +22,9 @@ stub = {
         "Mumbai": 29.8,
 }
 
+class CitiesResponse(BaseModel):
+    cities: list[str]
+
 class WeatherResponse(BaseModel):
     city: str
     temperature: float
@@ -41,3 +44,8 @@ def get_weather(city: str = Query(...)):
         condition="Sunny",
         icon="sunny"
     )
+
+@app.get("/cities", response_model=CitiesResponse)
+def get_cities():
+    return CitiesResponse(cities=PREDEFINED_CITIES) 
+
