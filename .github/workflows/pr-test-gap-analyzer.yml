@@ -211,34 +211,64 @@ jobs:
       - name: Run Suggested Tests
         if: steps.tests.outputs.found == 'true'
         run: |
+          set -o pipefail # ensures pipeline fails if npm test fails
           echo "Running tests extracted from LLM analysis..."
           cd ${{ github.workspace }}
 
-          # Run each test command from the extracted test files
+          # Separate test files by framework
+          declare -a angular_tests
+          declare -a python_tests
+
           while IFS= read -r test_file; do
             [ -z "$test_file" ] && continue
 
-            echo ""
-            echo "========================================"
-            echo "Testing: $test_file"
-            echo "========================================"
-
             if [[ "$test_file" == *.spec.ts ]] || [[ "$test_file" == *.test.ts ]]; then
-              # Change to the directory containing the test (usually weather-ui for Angular tests)
-              if [[ "$test_file" == weather-ui/* ]]; then
-                (cd weather-ui && npm test -- "$test_file" || true)
-              else
-                npm test -- "$test_file" || true
-              fi
+              # Strip weather-ui/ prefix if present
+              test_path="${test_file#weather-ui/}"
+              angular_tests+=("src/**/$test_path")
+              echo "Queued Angular test: $test_path"
             elif [[ "$test_file" == test_*.py ]] || [[ "$test_file" == *_test.py ]]; then
-              # Python tests
-              if [[ "$test_file" == backend/* ]]; then
-                (cd backend && pytest "$test_file" || true)
-              else
-                pytest "$test_file" || true
-              fi
+              python_tests+=("$test_file")
+              echo "Queued Python test: $test_file"
             fi
           done < tests.txt
+
+          # Run Angular tests if any were queued
+          if [ ${#angular_tests[@]} -gt 0 ]; then
+            echo ""
+            echo "========================================"
+            echo "Running Angular Tests"
+            echo "========================================"
+            cd weather-ui
+            
+            # Ensure dependencies are installed
+            echo "Installing npm dependencies..."
+            npm install
+            
+            # Run each test file individually with npm test (which invokes ng test)
+            for test_pattern in "${angular_tests[@]}"; do
+              # Extract just the filename pattern for ng test
+              test_file=$(basename "$test_pattern")
+              echo ""
+              echo "Running: npm test -- --include='**/$test_file' --watch=false --browsers=ChromeHeadless --code-coverage=false"
+              npm test -- --include="**/$test_file" --watch=false --browsers=ChromeHeadless --code-coverage=false 2>&1 | head -100 || { echo "Test execution finished (exit code: 1)"; exit 1; }
+            done
+            cd ..
+          fi
+
+          # Run Python tests if any were queued
+          if [ ${#python_tests[@]} -gt 0 ]; then
+            echo ""
+            echo "========================================"
+            echo "Running Python Tests"
+            echo "========================================"
+            cd backend
+            for test_file in "${python_tests[@]}"; do
+              echo "Running: pytest $test_file"
+              pytest "$test_file" || true
+            done
+            cd ..
+          fi
 
           echo ""
           echo "Test execution completed."
