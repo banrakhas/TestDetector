@@ -55,6 +55,6 @@ describe('WeatherComponent', () => {
   it('should render heading with correct text', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h2')?.textContent).toContain('Weather-App');
+    expect(compiled.querySelector('h2')?.textContent).toContain('City-Weather-App');
   });
 });
